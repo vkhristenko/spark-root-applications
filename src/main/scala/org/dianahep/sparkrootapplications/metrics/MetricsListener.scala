@@ -41,15 +41,22 @@ class MetricsListener(conf: SparkConf) extends SparkListener {
   val jobDescString = "spark.job.description";
   val jobIdString = "spark.jobGroup.id";
 
+  case class Task(var id: Long, var host: String, var executorId: String,
+                  var duration: Long, var taskType: String,
+                  var launchTime: Long, var finishTime: Long,
+                  var gettingResultTime: Long);
+  case class Stage(var id: Int, var name: String, var numTasks: Int, 
+                   var submissionTime: Long, var completionTime: Long,
+                   val tasks: scala.collection.mutable.HashMap[String, Task]);
   case class Job(var id: Int, var groupId: String, 
-                 var desc: String, var startTime: Long, var endTime: Long);
+                 var desc: String, var startTime: Long, var endTime: Long,
+                 val stages: scala.collection.mutable.HashMap[String, Stage]);
   var currentJob: Job = null
   var jobs: ListBuffer[Job] = ListBuffer.empty[Job];
 
   // application start/end
   override def onApplicationEnd(appEnd: SparkListenerApplicationEnd) {
     logger.info(s"Application ended $appEnd with #jobs=${jobs.length}")
-    for (x <- jobs) logger.info(s"Job $x")
 
     // from http://json4s.org/ 
     implicit val formats = Serialization.formats(NoTypeHints)
@@ -66,13 +73,12 @@ class MetricsListener(conf: SparkConf) extends SparkListener {
 
   // job start/end
   override def onJobStart(jobStart: SparkListenerJobStart) {
-    logger.info(s"Job started with ${jobStart.stageInfos.size} stages: $jobStart properties: ${jobStart.properties}")
-
     // reset current job
     currentJob = jobStart match {
       case SparkListenerJobStart(jobId, time, stageInfos, props) => 
         Job(jobId, props.getProperty(jobIdString, ""), 
-          props.getProperty(jobDescString,""), time, 0
+          props.getProperty(jobDescString,""), time, 0,
+          scala.collection.mutable.HashMap.empty[String, Stage]
         )
       case _ => null
     }
@@ -84,26 +90,64 @@ class MetricsListener(conf: SparkConf) extends SparkListener {
   }
 
   // stage submitted/completed
-  /*
-  override def onStageCompleted(stageCompleted: SparkListenerStageCompleted): Unit = {
-    logger.info(s"Stage ${stageCompleted.stageInfo.stageId} completed with ${stageCompleted.stageInfo.numTasks} tasks.")
+  override def onStageCompleted(stageCompleted: SparkListenerStageCompleted): Unit = 
+  stageCompleted match {
+    case SparkListenerStageCompleted(stageInfo) => {
+      stageInfo.completionTime match {
+        case Some(value) => currentJob.stages(stageInfo.stageId.toString).completionTime=value
+        case None => -1
+      }
+      stageInfo.submissionTime match {
+        case Some(value) => currentJob.stages(stageInfo.stageId.toString).submissionTime=value
+        case None => -1
+      }
+    }
+    case _ => None
   }
 
-  override def onStageSubmitted(stageSubmitted: SparkListenerStageSubmitted) = {
-    logger.info(s"Stage submitted $stageSubmitted")
-  }*/
+  // stage was submitted
+  override def onStageSubmitted(stageSubmitted: SparkListenerStageSubmitted) = 
+  stageSubmitted match {
+    case SparkListenerStageSubmitted(stageInfo, props) =>
+      currentJob.stages += (stageInfo.stageId.toString -> 
+        Stage(stageInfo.stageId, stageInfo.name, stageInfo.numTasks,
+          stageInfo.submissionTime match {
+            case Some(value) => value
+            case None => -1
+          }, 
+          stageInfo.completionTime match {
+            case Some(value) => value
+            case None => -1
+          }, 
+          scala.collection.mutable.HashMap.empty[String, Task])
+      )
+    case _ => None
+  }
 
-  // task start/end/gettingResult
-  /*
-  override def onTaskStart(taskStart: SparkListenerTaskStart) = {
-    logger.info(s"Task started $taskStart")
+  // starting a task
+  override def onTaskStart(taskStart: SparkListenerTaskStart) = 
+  taskStart match {
+    case SparkListenerTaskStart(stageId, attemptId, taskInfo) =>
+      currentJob.stages(stageId.toString).tasks += (taskInfo.taskId.toString ->
+        Task(taskInfo.taskId, taskInfo.host, taskInfo.executorId, 
+          -1, "", taskInfo.launchTime, -1, -1))
+    case _ => None
   }
 
   override def onTaskGettingResult(taskGettingResult: SparkListenerTaskGettingResult) = {
     logger.info(s"Task Getting Result $taskGettingResult")
   }
 
-  override def onTaskEnd(taskEnd: SparkListenerTaskEnd) = {
-    logger.info(s"Task Edn $taskEnd")
-  }*/
+  // finishing a task
+  override def onTaskEnd(taskEnd: SparkListenerTaskEnd) = 
+  taskEnd match {
+    case SparkListenerTaskEnd(stageId, attemptId, taskType, reason, 
+                              taskInfo, taskMetrics) => {
+      currentJob.stages(stageId.toString).tasks(taskInfo.taskId.toString).duration = taskInfo.duration
+      currentJob.stages(stageId.toString).tasks(taskInfo.taskId.toString).taskType = taskType
+      currentJob.stages(stageId.toString).tasks(taskInfo.taskId.toString).finishTime = taskInfo.finishTime
+      currentJob.stages(stageId.toString).tasks(taskInfo.taskId.toString).gettingResultTime = taskInfo.gettingResultTime
+    }
+    case _ => None
+  }
 }

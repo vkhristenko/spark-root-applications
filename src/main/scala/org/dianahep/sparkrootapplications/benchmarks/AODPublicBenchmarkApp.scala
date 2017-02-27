@@ -52,8 +52,7 @@ object AODPublicBenchmarkApp {
     // B1 - count on Dataframe=Dataset[Row]
     //
     val b1 = List(
-      new DatasetQuery("df.count example",{d: Dataset[Row] => d.count}, df, numTrials),
-      new DatasetQuery("df.rdd.count example",{d: Dataset[Row] => d.rdd.count}, df, numTrials)
+      new DatasetQuery("df.count example",{d: Dataset[Row] => d.count}, df, numTrials)
     )
 
     //
@@ -234,31 +233,31 @@ object AODPublicBenchmarkApp {
     if (testsToRun contains 1) 
       for (i <- 0 until b1.length; x=b1(i)) 
       {
-        spark.sparkContext.setJobGroup(s"Q$i", x.name)
+        spark.sparkContext.setJobGroup(s"B1.Q$i", x.name)
         x.run
       }
     if (testsToRun contains 2) 
       for (i <- 0 until b2.length; x=b2(i)) 
       {
-        spark.sparkContext.setJobGroup(s"Q$i", x.name)
+        spark.sparkContext.setJobGroup(s"B2.Q$i", x.name)
         x.run
       }
     if (testsToRun contains 3) 
       for (i <- 0 until b3.length; x=b3(i)) 
       {
-        spark.sparkContext.setJobGroup(s"Q$i", x.name)
+        spark.sparkContext.setJobGroup(s"B3.Q$i", x.name)
         x.run
       }
     if (testsToRun contains 4) 
       for (i <- 0 until b4.length; x=b4(i)) 
       {
-        spark.sparkContext.setJobGroup(s"Q$i", x.name)
+        spark.sparkContext.setJobGroup(s"B4.Q$i", x.name)
         x.run
       }
     if (testsToRun contains 5) 
       for (i <- 0 until b5.length; x=b5(i)) 
       {
-        spark.sparkContext.setJobGroup(s"Q$i", x.name)
+        spark.sparkContext.setJobGroup(s"B5.Q$i", x.name)
         x.run
       }
 
