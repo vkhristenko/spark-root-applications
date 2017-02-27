@@ -57,43 +57,17 @@ object AODPublicBenchmarkApp {
 
     //
     // B2 on Muons[pt]
+    // 0 - flatMap + count
+    // 1 - flatMap.filter.reduce
     //
     val dfMuons = df.select("recoMuons_muons__RECO_.recoMuons_muons__RECO_obj.reco::RecoCandidate.reco::LeafCandidate")
     val dfPt = dfMuons.select("reco::LeafCandidate.pt_").flatMap(_.getSeq[Float](0)).select($"value".alias("pt_")).as[Float]
     val b2 = List(
       new DatasetQuery("df.flatMap:dfPt.count", {d: Dataset[Float] => d.count}, 
         dfPt, numTrials),
-      new DatasetQuery("df.flatMap:dfPt.reduceSum", 
-        {d: Dataset[Float] => d.reduce({(x:Float, y: Float) => x+y})}, dfPt, numTrials),
-      new DatasetQuery("df.flatMap:dfPt.reduceMax", 
-        {d: Dataset[Float] => d.reduce({(x:Float, y: Float) => max(x,y)})}, 
-        dfPt, numTrials),
-      new DatasetQuery("df.flatMap:dfPt.reduceMin", 
-        {d: Dataset[Float] => d.reduce({(x:Float, y: Float) => min(x,y)})}, 
-        dfPt, numTrials),
-      new DatasetQuery("df.flatMap:dfPt.describe(pt_)",
-        {d: Dataset[Float] => d.describe("pt_").show}, dfPt, numTrials),
-      new DatasetQuery("dfPt.filter(pt_ > 10).count", 
-        {d: Dataset[Float] => d.filter("pt_ > 10").count}, dfPt, numTrials),
-      new DatasetQuery("dfPt.filter(pt_ < 10).count", 
-        {d: Dataset[Float] => d.filter("pt_ < 10").count}, dfPt, numTrials),
-      new DatasetQuery("dfPt.filter(pt_ > 10).reduce({(x:Float, y: Float) => x+y})",
-        {d: Dataset[Float] => d.filter("pt_ > 10").reduce({(x:Float, y: Float) => x+y})},
-        dfPt, numTrials),
       new DatasetQuery("dfPt.filter(pt_ < 10).reduce({(x:Float, y: Float) => x+y})",
         {d: Dataset[Float] => d.filter("pt_ < 10").reduce({(x:Float, y: Float) => x+y})},
-        dfPt, numTrials),
-      new DatasetQuery("dfPt.filter(pt_ > 10).reduce({(x:Float, y: Float) => max(x,y)})",
-        {d: Dataset[Float] => d.filter("pt_ > 10").reduce({(x:Float, y: Float) => max(x,y)})}, dfPt, numTrials),
-      new DatasetQuery("dfPt.filter(pt_ > 10).reduce({(x:Float, y: Float) => min(x,y)})",
-        {d: Dataset[Float] => d.filter("pt_ > 10").reduce({(x:Float, y: Float) => min(x,y)})}, dfPt, numTrials),
-      new DatasetQuery("""dfPt.filter(pt_ > 10).describe("pt_").show""",
-        {d: Dataset[Float] => d.filter("pt_ > 10").describe("pt_").show},
-        dfPt, numTrials),
-      new DatasetQuery("""dfPt.filter("pt_ < 10").describe("pt_").show""",
-        {d: Dataset[Float] => d.filter("pt_ < 10").describe("pt_").show},
-        dfPt, numTrials),
-      new DatasetQuery("""dfPt.filter("pt_ < 10").map({x: Float => (x*x)}).describe("pt_").show""", {d: Dataset[Float] => dfPt.filter("pt_ < 10").map({x: Float => (x*x)}).withColumnRenamed("value", "pt_").describe("pt_").show}, dfPt, numTrials)
+        dfPt, numTrials)
     )
 
     //
@@ -106,16 +80,6 @@ object AODPublicBenchmarkApp {
       "reco::LeafCandidate.eta_", "reco::LeafCandidate.phi_").flatMap[(Float, Float, Float)]({row: Row => row.getSeq[Float](0).zip(row.getSeq[Float](1)).zip(row.getSeq[Float](2)).map(fff)}).toDF(names: _*).as[(Float, Float, Float)]
     dfPtEtaPhi.show;dfPtEtaPhi.printSchema
     val b3 = List(
-      new DatasetQuery("""dfPtEtaPhi.describe("pt_", "phi_", "eta_").show""",
-        {d: Dataset[TripleFloat] => d.describe("pt_", "phi_", "eta_").show},
-        dfPtEtaPhi, numTrials),
-      new DatasetQuery("""dfPtEtaPhi.count""",
-        {d: Dataset[TripleFloat] => d.count}, dfPtEtaPhi, numTrials),
-      new DatasetQuery("""dfPtEtaPhi.filter("pt_ > 10").describe("pt_", "phi_", "eta_").show""", {d: Dataset[TripleFloat] => d.filter("pt_ > 10").describe("pt_", "phi_", "eta_").show}, dfPtEtaPhi, numTrials),
-      new DatasetQuery("""dfPtEtaPhi.filter("pt_ > 10").count""",
-        {d: Dataset[TripleFloat] => d.filter("pt_ > 10").count}, dfPtEtaPhi, numTrials),
-      new DatasetQuery("""dfPtEtaPhi.filter("eta_ < 0").describe("pt_", "phi_", "eta_").show""", 
-        {d: Dataset[TripleFloat] => d.filter("eta_ < 0").describe("pt_", "phi_", "eta_").show}, dfPtEtaPhi, numTrials),
       new DatasetQuery("""dfPtEtaPhi.filter("eta_ < 0").reduce({(x: (Float, Float, Float), y: (Float, Float, Float)) => (x._1+y._1, x._2+y._2, x._3+y._3)})""",
         {d: Dataset[TripleFloat] => d.filter("eta_ < 0").reduce({(x: (Float, Float, Float), y: (Float, Float, Float)) => (x._1+y._1, x._2+y._2, x._3+y._3)})}, dfPtEtaPhi, numTrials),
       new DatasetQuery("""dfPtEtaPhi.filter("phi_ > 0").reduce({(x: (Float, Float, Float), y: (Float, Float, Float)) => (x._1+y._1, x._2+y._2, x._3+y._3)})""",
@@ -229,6 +193,27 @@ object AODPublicBenchmarkApp {
         dsEvents, numTrials)
     )
 
+    //
+    // B6 - Physics Related for Muons
+    // 0 - filter.flatMap.aggregate 
+    // 1 - filter.flatMap.aggregate
+    //
+    val b6 = List(
+      new DatasetQuery("""d.filter(_.muons.length > 0).flatMap(_.muons).rdd.aggregate(emptyCandidate)(new Increment, new Combine)""",
+        {d: Dataset[Event] => {val h = d.filter(_.muons.length > 0)
+          .flatMap(_.muons).rdd.aggregate(emptyCandidate)(new Increment, new Combine);
+          h("pt").println; h.toJsonFile(if (outPath.last == '/') outPath ++ "bundleMuons.json" else (outPath ++ "/" ++ "bundleMuons.json"))}},
+        dsEvents, numTrials),
+      new DatasetQuery("""d.filter(_.muons.length >= 2).flatMap({e: Event => for (i <- 0 until e.muons.length; j <- 0 until e.muons.length) yield buildDiCandidate(e.muons(i), e.muons(j))}).rdd.aggregate(emptyDiCandidate)(new Increment, new Combine)""",
+        {d: Dataset[Event] => {val h = d.filter(_.muons.length >= 2)
+          .flatMap({e: Event => for (i <- 0 until e.muons.length; j <- 0 until e.muons.length) yield buildDiCandidate(e.muons(i), e.muons(j))})
+          .rdd.aggregate(emptyDiCandidate)(new Increment, new Combine);
+          h("pt").println; 
+          h.toJsonFile(if (outPath.last == '/') outPath ++ "bundleDiMuons.json" 
+          else (outPath ++ "/" ++ "bundleDiMuons.json"))}},
+        dsEvents, numTrials)
+    )
+
     // start running all tests
     if (testsToRun contains 1) 
       for (i <- 0 until b1.length; x=b1(i)) 
@@ -260,10 +245,11 @@ object AODPublicBenchmarkApp {
         spark.sparkContext.setJobGroup(s"B5.Q$i", x.name)
         x.run
       }
-
-   import org.json4s._
-   import org.json4s.jackson.JsonMethods._
-   parse(""" { "numbers" : [1, 2, 3, 4] } """)
+    if (testsToRun contains 6)
+      for (i <- 0 until b6.length; x=b6(i)){
+        spark.sparkContext.setJobGroup(s"B6.Q$i", x.name)
+        x.run
+      }
 
    spark.stop
   }
