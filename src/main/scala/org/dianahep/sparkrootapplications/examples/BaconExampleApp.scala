@@ -1,4 +1,4 @@
-package org.dianahep.sparkrootexamples.apps
+package org.dianahep.sparkrootapplications.examples
 
 import org.apache.spark.sql.SparkSession
 import org.apache.spark.SparkContext
@@ -14,7 +14,6 @@ import org.dianahep.sparkroot._
 
 import org.dianahep.histogrammar._
 import org.dianahep.histogrammar.ascii._
-import org.dianahep.histogrammar.bokeh._
 
 object BaconExampleApp {
   case class Photon(pt: Float, eta: Float, phi: Float,
@@ -68,11 +67,13 @@ object BaconExampleApp {
     filledBundle("eta").println
 
     // save a plot
+    /*
     val plot_pt = filledBundle("pt").bokeh().plot
     save(plot_pt, "photon_pt.html")
     val plot_eta = filledBundle("eta").bokeh().plot
     save(plot_eta, "photon_eta.html")
     val plot_phi = filledBundle("phi").bokeh().plot
     save(plot_phi, "photon_phi.html")
+    */
   }
 }

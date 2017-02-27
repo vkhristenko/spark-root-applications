@@ -1,4 +1,4 @@
-package org.dianahep.sparkrootexamples.apps
+package org.dianahep.sparkrootapplications.examples
 
 import org.apache.spark.sql.SparkSession
 import org.apache.spark.SparkContext
@@ -14,7 +14,6 @@ import org.dianahep.sparkroot._
 
 import org.dianahep.histogrammar._
 import org.dianahep.histogrammar.ascii._
-import org.dianahep.histogrammar.bokeh._
 
 object HiggsExampleApp {
   case class Object();
@@ -100,6 +99,7 @@ object HiggsExampleApp {
     filledBundle("muon_eta").println
 
     // save a plot
+    /*
     val plot_e = filledBundle("electron_pt").bokeh().plot()
     save(plot_e, "electron_pt.html")
     val plot_mu = filledBundle("muon_pt").bokeh().plot
@@ -110,5 +110,6 @@ object HiggsExampleApp {
     save(plot_muoneta, "muon_eta.html")
     val plot_muonphi = filledBundle("muon_phi").bokeh().plot
     save(plot_muonphi, "muon_phi.html")
+    */
   }
 }
