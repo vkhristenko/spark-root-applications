@@ -33,6 +33,30 @@ import java.nio.file.{Paths, Path}
 //   - spark.job.id
 //   - if those are not provided - defaults to empty strings
 //
+  case class TMetrics(var diskBytesSpilled: Long, var exeDeserializeTime: Long,
+    var exeRunTime: Long, var bytesRead: Long, var recordsRead: Long, var jvmGC: Long,
+    var memoryBytesSpilled: Long, var bytesWritten: Long, var recordsWritten: Long,
+    var resultSerializationTime: Long, var resultSize: Long);
+  case class Task(var id: Long, var host: String, var executorId: String,
+                  var duration: Long, var taskType: String,
+                  var launchTime: Long, var finishTime: Long,
+                  var gettingResultTime: Long, metrics: TMetrics);
+  case class Stage(var id: Int, var name: String, var numTasks: Int, 
+                   var submissionTime: Long, var completionTime: Long,
+                   val tasks: scala.collection.mutable.Map[String, Task]);
+  case class Job(var id: Int, var groupId: String, 
+                 var desc: String, var startTime: Long, var endTime: Long,
+                 val stages: scala.collection.mutable.Map[String, Stage]);
+  case class TaskClone(var id: Long, var host: String, var executorId: String,
+                  var duration: Long, var taskType: String,
+                  var launchTime: Long, var finishTime: Long,
+                  var gettingResultTime: Long);
+  case class StageClone(var id: Int, var name: String, var numTasks: Int, 
+                   var submissionTime: Long, var completionTime: Long,
+                   val tasks: Map[String, TaskClone]);
+  case class JobClone(var id: Int, var groupId: String, 
+                 var desc: String, var startTime: Long, var endTime: Long,
+                 val stages: Map[String, StageClone]);
 class MetricsListener(conf: SparkConf) extends SparkListener {
   // logger
   lazy val logger = LogManager.getLogger("org.dianahep.sparkrootapplications.metrics")
@@ -40,17 +64,8 @@ class MetricsListener(conf: SparkConf) extends SparkListener {
   val metricsFileName = conf.get("spark.executorEnv.metricsFileName", "metrics.json")
   val jobDescString = "spark.job.description";
   val jobIdString = "spark.jobGroup.id";
-
-  case class Task(var id: Long, var host: String, var executorId: String,
-                  var duration: Long, var taskType: String,
-                  var launchTime: Long, var finishTime: Long,
-                  var gettingResultTime: Long);
-  case class Stage(var id: Int, var name: String, var numTasks: Int, 
-                   var submissionTime: Long, var completionTime: Long,
-                   val tasks: scala.collection.mutable.HashMap[String, Task]);
-  case class Job(var id: Int, var groupId: String, 
-                 var desc: String, var startTime: Long, var endTime: Long,
-                 val stages: scala.collection.mutable.HashMap[String, Stage]);
+  
+  // basic defs
   var currentJob: Job = null
   var jobs: ListBuffer[Job] = ListBuffer.empty[Job];
 
@@ -78,7 +93,7 @@ class MetricsListener(conf: SparkConf) extends SparkListener {
       case SparkListenerJobStart(jobId, time, stageInfos, props) => 
         Job(jobId, props.getProperty(jobIdString, ""), 
           props.getProperty(jobDescString,""), time, 0,
-          scala.collection.mutable.HashMap.empty[String, Stage]
+          scala.collection.mutable.Map.empty[String, Stage]
         )
       case _ => null
     }
@@ -119,7 +134,7 @@ class MetricsListener(conf: SparkConf) extends SparkListener {
             case Some(value) => value
             case None => -1
           }, 
-          scala.collection.mutable.HashMap.empty[String, Task])
+          scala.collection.mutable.Map.empty[String, Task])
       )
     case _ => None
   }
@@ -130,7 +145,8 @@ class MetricsListener(conf: SparkConf) extends SparkListener {
     case SparkListenerTaskStart(stageId, attemptId, taskInfo) =>
       currentJob.stages(stageId.toString).tasks += (taskInfo.taskId.toString ->
         Task(taskInfo.taskId, taskInfo.host, taskInfo.executorId, 
-          -1, "", taskInfo.launchTime, -1, -1))
+          -1, "", taskInfo.launchTime, -1, -1,
+          TMetrics(-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1)))
     case _ => None
   }
 
@@ -147,6 +163,13 @@ class MetricsListener(conf: SparkConf) extends SparkListener {
       currentJob.stages(stageId.toString).tasks(taskInfo.taskId.toString).taskType = taskType
       currentJob.stages(stageId.toString).tasks(taskInfo.taskId.toString).finishTime = taskInfo.finishTime
       currentJob.stages(stageId.toString).tasks(taskInfo.taskId.toString).gettingResultTime = taskInfo.gettingResultTime
+
+      // get all the metrics
+      currentJob.stages(stageId.toString).tasks(taskInfo.taskId.toString).metrics.diskBytesSpilled = taskMetrics.diskBytesSpilled
+      currentJob.stages(stageId.toString).tasks(taskInfo.taskId.toString).metrics.exeDeserializeTime = taskMetrics.executorDeserializeTime
+      currentJob.stages(stageId.toString).tasks(taskInfo.taskId.toString).metrics.exeRunTime = taskMetrics.executorRunTime
+      currentJob.stages(stageId.toString).tasks(taskInfo.taskId.toString).metrics.bytesRead = taskMetrics.inputMetrics.bytesRead
+      currentJob.stages(stageId.toString).tasks(taskInfo.taskId.toString).metrics.recordsRead = taskMetrics.inputMetrics.recordsRead
     }
     case _ => None
   }
