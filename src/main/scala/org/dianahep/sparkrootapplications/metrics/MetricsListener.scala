@@ -34,7 +34,9 @@ import java.nio.file.{Paths, Path}
 //   - if those are not provided - defaults to empty strings
 //
   case class TMetrics(var diskBytesSpilled: Long, var exeDeserializeTime: Long,
-    var exeRunTime: Long, var bytesRead: Long, var recordsRead: Long, var jvmGC: Long,
+    var exeDeserializeCpuTime: Long,
+    var exeRunTime: Long, var exeCpuTime: Long,
+    var bytesRead: Long, var recordsRead: Long, var jvmGCTime: Long,
     var memoryBytesSpilled: Long, var bytesWritten: Long, var recordsWritten: Long,
     var resultSerializationTime: Long, var resultSize: Long);
   case class Task(var id: Long, var host: String, var executorId: String,
@@ -146,7 +148,7 @@ class MetricsListener(conf: SparkConf) extends SparkListener {
       currentJob.stages(stageId.toString).tasks += (taskInfo.taskId.toString ->
         Task(taskInfo.taskId, taskInfo.host, taskInfo.executorId, 
           -1, "", taskInfo.launchTime, -1, -1,
-          TMetrics(-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1)))
+          TMetrics(-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1)))
     case _ => None
   }
 
@@ -168,6 +170,12 @@ class MetricsListener(conf: SparkConf) extends SparkListener {
       currentJob.stages(stageId.toString).tasks(taskInfo.taskId.toString).metrics.diskBytesSpilled = taskMetrics.diskBytesSpilled
       currentJob.stages(stageId.toString).tasks(taskInfo.taskId.toString).metrics.exeDeserializeTime = taskMetrics.executorDeserializeTime
       currentJob.stages(stageId.toString).tasks(taskInfo.taskId.toString).metrics.exeRunTime = taskMetrics.executorRunTime
+      currentJob.stages(stageId.toString).tasks(taskInfo.taskId.toString).metrics.exeCpuTime = taskMetrics.executorCpuTime
+      currentJob.stages(stageId.toString).tasks(taskInfo.taskId.toString).metrics.exeDeserializeCpuTime = taskMetrics.executorDeserializeCpuTime
+      currentJob.stages(stageId.toString).tasks(taskInfo.taskId.toString).metrics.jvmGCTime = taskMetrics.jvmGCTime
+      currentJob.stages(stageId.toString).tasks(taskInfo.taskId.toString).metrics.resultSerializationTime = taskMetrics.resultSerializationTime
+
+      // input metrics - for now not working properly!
       currentJob.stages(stageId.toString).tasks(taskInfo.taskId.toString).metrics.bytesRead = taskMetrics.inputMetrics.bytesRead
       currentJob.stages(stageId.toString).tasks(taskInfo.taskId.toString).metrics.recordsRead = taskMetrics.inputMetrics.recordsRead
     }
