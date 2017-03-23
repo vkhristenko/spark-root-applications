@@ -80,6 +80,50 @@ object AODPublicAnalysisApp {
       x = Axis(label = "Parallelism(14execs, varying Threads)"),
       y = Axis(label = "Duration(s)")))
 
+    //
+    // Sum CPU Time over all Tasks / Sum over Duration for all Tasks
+    //
+    def computeTotalCPUPerStage(stage: StageClone): Double = {
+      stage.tasks.toSeq.unzip._2.foldLeft[Double](0.0)(_ + _.metrics.exeCpuTime)
+    }
+    def computeTotalDurationPerStage(stage: StageClone): Double = {
+      stage.tasks.toSeq.unzip._2.foldLeft[Double](0.0)(_ + _.duration)
+    }
+    def computeTotalCPUPerJob(job: JobClone): Double = {
+      job.stages.toSeq.unzip._2.map(computeTotalCPUPerStage(_)).sum/1000000000
+    }
+    def computeTotalDurationPerJob(job: JobClone): Double = 
+      job.stages.toSeq.unzip._2.map(computeTotalDurationPerStage(_)).sum/1000
+    val cpuPercentageVaryingThreads = groupedVaryingThreads.toSeq.map({
+      x: (String, Array[((Int, Int), JobClone)]) => 
+        XY(x._2.map({p: ((Int, Int), JobClone) =>
+          ((p._1._1*p._1._2).toDouble, computeTotalCPUPerJob(p._2)/computeTotalDurationPerJob(p._2))}), x._1, style=XYPlotStyle.Points)
+    })
+    output(PNG(pathToPlots, "cpuPercentageVaryingThreads"), 
+      xyChart(cpuPercentageVaryingThreads, showLegend=true, legendPosX=LegendPosX.Right,
+        legendPosY=LegendPosY.Top, title="CPU Percentage vs Parallelism (14 execs const, varying #threads)", x=Axis(label = "Parallelism(14execs, varying Threads)"),
+        y = Axis(label = "Sum CPU Time per Task / Sum Duration Time per Task")))
+    
+    val cpuTotalVaryingThreads = groupedVaryingThreads.toSeq.map({
+      x: (String, Array[((Int, Int), JobClone)]) => 
+        XY(x._2.map({p: ((Int, Int), JobClone) =>
+          ((p._1._1*p._1._2).toDouble, computeTotalCPUPerJob(p._2))}), x._1, style=XYPlotStyle.Points)
+    })
+    output(PNG(pathToPlots, "cpuTotalVaryingThreads"), 
+      xyChart(cpuTotalVaryingThreads, showLegend=true, legendPosX=LegendPosX.Right,
+        legendPosY=LegendPosY.Top, title="Total CPU Time vs Parallelism (14 execs const, varying #threads)", x=Axis(label = "Parallelism(14execs, varying Threads)"),
+        y = Axis(label = "Sum CPU Time over all Tasks per Job")))
+
+    val durationTotalVaryingThreads = groupedVaryingThreads.toSeq.map({
+      x: (String, Array[((Int, Int), JobClone)]) => 
+        XY(x._2.map({p: ((Int, Int), JobClone) =>
+          ((p._1._1*p._1._2).toDouble, computeTotalDurationPerJob(p._2))}), x._1, style=XYPlotStyle.Points)
+    })
+    output(PNG(pathToPlots, "durationTotalVaryingThreads"), 
+      xyChart(durationTotalVaryingThreads, showLegend=true, legendPosX=LegendPosX.Right,
+        legendPosY=LegendPosY.Top, title="Total Duration vs Parallelism (14 execs const, varying #threads)", x=Axis(label = "Parallelism(14execs, varying Threads)"),
+        y = Axis(label = "Sum Duration over all Tasks per Job")))
+
     
     // job total time vs #
     val jobTimesVaryingExecutors = groupedVaryingExecutors.toSeq.map({
@@ -93,6 +137,35 @@ object AODPublicAnalysisApp {
       title = "Job Execution Time vs Parallelism(#execs floats, 70threads const)",
       x = Axis(label = "Parallelism(#execs floats, 70threads const)"),
       y = Axis(label = "Duration (s)")))
+
+    val cpuPercentageVaryingExecutors = groupedVaryingExecutors.toSeq.map({
+      x: (String, Array[((Int, Int), JobClone)]) => 
+        XY(x._2.map({p: ((Int, Int), JobClone) =>
+          ((p._1._1*p._1._2).toDouble, computeTotalCPUPerJob(p._2)/computeTotalDurationPerJob(p._2))}), x._1, style=XYPlotStyle.Points)
+    })
+    output(PNG(pathToPlots, "cpuPercentageVaryingExecutors"), 
+      xyChart(cpuPercentageVaryingExecutors, showLegend=true, legendPosX=LegendPosX.Right,
+        legendPosY=LegendPosY.Top, title="Job Execution Time vs Parallelism(#execs floats, 70threads const)", x=Axis(label = "Parallelism(#execs floats, 70threads const)"),
+        y = Axis(label = "Sum CPU Time per Task / Sum Duration Time per Task")))
+    val cpuTotalVaryingExecutors = groupedVaryingExecutors.toSeq.map({
+      x: (String, Array[((Int, Int), JobClone)]) => 
+        XY(x._2.map({p: ((Int, Int), JobClone) =>
+          ((p._1._1*p._1._2).toDouble, computeTotalCPUPerJob(p._2))}), x._1, style=XYPlotStyle.Points)
+    })
+    output(PNG(pathToPlots, "cpuTotalVaryingExecutors"), 
+      xyChart(cpuTotalVaryingExecutors, showLegend=true, legendPosX=LegendPosX.Right,
+        legendPosY=LegendPosY.Top, title="Total CPU Time vs Parallelism (#execs floats, 70threads const)", x=Axis(label = "Parallelism(#execs, 70threads"),
+        y = Axis(label = "Sum CPU Time over all Tasks per Job")))
+
+    val durationTotalVaryingExecutors = groupedVaryingExecutors.toSeq.map({
+      x: (String, Array[((Int, Int), JobClone)]) => 
+        XY(x._2.map({p: ((Int, Int), JobClone) =>
+          ((p._1._1*p._1._2).toDouble, computeTotalDurationPerJob(p._2))}), x._1, style=XYPlotStyle.Points)
+    })
+    output(PNG(pathToPlots, "durationTotalVaryingExecutors"), 
+      xyChart(durationTotalVaryingExecutors, showLegend=true, legendPosX=LegendPosX.Right,
+        legendPosY=LegendPosY.Top, title="Total Duration vs Parallelism (#execs floats, 70threads const)", x=Axis(label = "Parallelism(#execs, 70threads)"),
+        y = Axis(label = "Sum Duration over all Tasks per Job")))
 
     //
     // time per stage for varying threads case

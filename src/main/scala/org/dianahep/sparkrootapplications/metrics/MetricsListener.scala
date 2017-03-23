@@ -52,7 +52,7 @@ import java.nio.file.{Paths, Path}
   case class TaskClone(var id: Long, var host: String, var executorId: String,
                   var duration: Long, var taskType: String,
                   var launchTime: Long, var finishTime: Long,
-                  var gettingResultTime: Long);
+                  var gettingResultTime: Long, metrics: TMetrics);
   case class StageClone(var id: Int, var name: String, var numTasks: Int, 
                    var submissionTime: Long, var completionTime: Long,
                    val tasks: Map[String, TaskClone]);
