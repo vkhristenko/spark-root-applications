@@ -56,14 +56,17 @@ object AODPublicAnalysisApp {
     for (x <- flattened.unzip._2; stage <- x.stages.toSeq.unzip._2)
       println(s"jobGroupId=${x.groupId} numStages=${x.stages.toSeq.length} numTasks=${stage.numTasks} tasksLength=${stage.tasks.toSeq.length} stageId=${stage.id}, stageName=${stage.name}")
 
-    // from now on, we got:
-    // Map[Job Id -> List[(#execs, #threads), Job]]
+    //
+    // 
+    //
     val flattenedVaryingThreads = flattened.filter(_._1._1 == 14)
     val flattenedVaryingExecutors = flattened.filter(_._1._2 == 70)
 
     // group queries by group id
+    // Map[JobId -> List[(#execs, #threads), Job]]
     val groupedVaryingThreads = flattenedVaryingThreads.groupBy(_._2.groupId).filter(_._1!="")
     // group queries by group id
+    // Map[JobId -> List[(#execs, #threads), Job]]
     val groupedVaryingExecutors = flattenedVaryingExecutors.groupBy(_._2.groupId).filter(_._1!="")
 
     // job total time vs #threads*#execs keeping
@@ -86,14 +89,51 @@ object AODPublicAnalysisApp {
     def computeTotalCPUPerStage(stage: StageClone): Double = {
       stage.tasks.toSeq.unzip._2.foldLeft[Double](0.0)(_ + _.metrics.exeCpuTime)
     }
+    def computeTotalExeRunTimePerStage(stage: StageClone): Double = {
+      stage.tasks.toSeq.unzip._2.foldLeft[Double](0.0)(_ + _.metrics.exeRunTime)
+    }
+    def computeTotalJVMGCTimePerStage(stage: StageClone): Double = {
+      stage.tasks.toSeq.unzip._2.foldLeft[Double](0.0)(_ + _.metrics.jvmGCTime)
+    }
+    def computeTotalExeDeserTimePerStage(stage: StageClone): Double = {
+      stage.tasks.toSeq.unzip._2.foldLeft[Double](0.0)(_ + _.metrics.exeDeserializeTime)
+    }
+    def computeTotalExeDeserCpuTimePerStage(stage: StageClone): Double = {
+      stage.tasks.toSeq.unzip._2.foldLeft[Double](0.0)(_ + _.metrics.exeDeserializeCpuTime)
+    }
+    def computeTotalResultSerTimePerStage(stage: StageClone): Double = {
+      stage.tasks.toSeq.unzip._2.foldLeft[Double](0.0)(_ + _.metrics.resultSerializationTime)
+    }
+    def computeTotalGettingResultTimePerStage(stage: StageClone): Double = {
+      stage.tasks.toSeq.unzip._2.foldLeft[Double](0.0)(_ + _.gettingResultTime)
+    }
     def computeTotalDurationPerStage(stage: StageClone): Double = {
       stage.tasks.toSeq.unzip._2.foldLeft[Double](0.0)(_ + _.duration)
     }
     def computeTotalCPUPerJob(job: JobClone): Double = {
       job.stages.toSeq.unzip._2.map(computeTotalCPUPerStage(_)).sum/1000000000
     }
+    def computeTotalExeRunTimePerJob(job: JobClone): Double = {
+      job.stages.toSeq.unzip._2.map(computeTotalExeRunTimePerStage(_)).sum/1000
+    }
+    def computeTotalJVMGCTimePerJob(job: JobClone): Double = {
+      job.stages.toSeq.unzip._2.map(computeTotalJVMGCTimePerStage(_)).sum/1000
+    }
+    def computeTotalExeDeserTimePerJob(job: JobClone): Double = {
+      job.stages.toSeq.unzip._2.map(computeTotalExeDeserTimePerStage(_)).sum/1000
+    }
+    def computeTotalExeDeserCpuTimePerJob(job: JobClone): Double = {
+      job.stages.toSeq.unzip._2.map(computeTotalExeDeserCpuTimePerStage(_)).sum/1000000000
+    }
+    def computeTotalResultSerTimePerJob(job: JobClone): Double = {
+      job.stages.toSeq.unzip._2.map(computeTotalResultSerTimePerStage(_)).sum/1000
+    }
+    def computeTotalGettingResultTimePerJob(job: JobClone): Double = {
+      job.stages.toSeq.unzip._2.map(computeTotalGettingResultTimePerStage(_)).sum/1000
+    }
     def computeTotalDurationPerJob(job: JobClone): Double = 
       job.stages.toSeq.unzip._2.map(computeTotalDurationPerStage(_)).sum/1000
+    
     val cpuPercentageVaryingThreads = groupedVaryingThreads.toSeq.map({
       x: (String, Array[((Int, Int), JobClone)]) => 
         XY(x._2.map({p: ((Int, Int), JobClone) =>
@@ -104,6 +144,9 @@ object AODPublicAnalysisApp {
         legendPosY=LegendPosY.Top, title="CPU Percentage vs Parallelism (14 execs const, varying #threads)", x=Axis(label = "Parallelism(14execs, varying Threads)"),
         y = Axis(label = "Sum CPU Time per Task / Sum Duration Time per Task")))
     
+    //
+    // CPU Total varying number of threads
+    //
     val cpuTotalVaryingThreads = groupedVaryingThreads.toSeq.map({
       x: (String, Array[((Int, Int), JobClone)]) => 
         XY(x._2.map({p: ((Int, Int), JobClone) =>
@@ -113,7 +156,66 @@ object AODPublicAnalysisApp {
       xyChart(cpuTotalVaryingThreads, showLegend=true, legendPosX=LegendPosX.Right,
         legendPosY=LegendPosY.Top, title="Total CPU Time vs Parallelism (14 execs const, varying #threads)", x=Axis(label = "Parallelism(14execs, varying Threads)"),
         y = Axis(label = "Sum CPU Time over all Tasks per Job")))
+    
+    //
+    // Exe Run time varying number of threads
+    //
+    val exeRunTimeTotalVaryingThreads = groupedVaryingThreads.toSeq.map({
+      x: (String, Array[((Int, Int), JobClone)]) => 
+        XY(x._2.map({p: ((Int, Int), JobClone) =>
+          ((p._1._1*p._1._2).toDouble, computeTotalExeRunTimePerJob(p._2))}), x._1, style=XYPlotStyle.Points)
+    })
+    output(PNG(pathToPlots, "exeRunTimeTotalVaryingThreads"), 
+      xyChart(exeRunTimeTotalVaryingThreads, 
+              showLegend=true, legendPosX=LegendPosX.Right,
+              legendPosY=LegendPosY.Top, title="Total Executor Run Time vs Parallelism (14 execs const, varying #threads)", x=Axis(label = "Parallelism(14execs, varying Threads)"),
+              y = Axis(label = "Sum ExeRunTime over all Tasks per Job")))
 
+    //
+    // JVMGC varying number of threads
+    //
+    val jvmGCTimeTotalVaryingThreads = groupedVaryingThreads.toSeq.map({
+      x: (String, Array[((Int, Int), JobClone)]) => 
+        XY(x._2.map({p: ((Int, Int), JobClone) =>
+          ((p._1._1*p._1._2).toDouble, computeTotalJVMGCTimePerJob(p._2))}), x._1, style=XYPlotStyle.Points)
+    })
+    output(PNG(pathToPlots, "jvmGCTimeTotalVaryingThreads"), 
+      xyChart(jvmGCTimeTotalVaryingThreads, 
+              showLegend=true, legendPosX=LegendPosX.Right,
+              legendPosY=LegendPosY.Top, title="Total JVM GC Time vs Parallelism (14 execs const, varying #threads)", x=Axis(label = "Parallelism(14execs, varying Threads)"),
+              y = Axis(label = "Sum JVM GC Time over all Tasks per Job")))
+
+    //
+    // Executor Deserialization CPUT Time varying the number of threads
+    //
+    val exeDeserCpuTimeTotalVaryingThreads = groupedVaryingThreads.toSeq.map({
+      x: (String, Array[((Int, Int), JobClone)]) => 
+        XY(x._2.map({p: ((Int, Int), JobClone) =>
+          ((p._1._1*p._1._2).toDouble, computeTotalExeDeserCpuTimePerJob(p._2))}), x._1, style=XYPlotStyle.Points)
+    })
+    output(PNG(pathToPlots, "exeDeserCpuTimeTotalVaryingThreads"), 
+      xyChart(exeDeserCpuTimeTotalVaryingThreads, 
+              showLegend=true, legendPosX=LegendPosX.Right,
+              legendPosY=LegendPosY.Top, title="Total Executor Deser. CPU Time vs Parallelism (14 execs const, varying #threads)", x=Axis(label = "Parallelism(14execs, varying Threads)"),
+              y = Axis(label = "Sum Exe Deser. CPU Time over all Tasks per Job")))
+
+    //
+    // Exe Deserialization Time ...
+    //
+    val exeDeserTimeTotalVaryingThreads = groupedVaryingThreads.toSeq.map({
+      x: (String, Array[((Int, Int), JobClone)]) => 
+        XY(x._2.map({p: ((Int, Int), JobClone) =>
+          ((p._1._1*p._1._2).toDouble, computeTotalExeDeserTimePerJob(p._2))}), x._1, style=XYPlotStyle.Points)
+    })
+    output(PNG(pathToPlots, "exeDeserTimeTotalVaryingThreads"), 
+      xyChart(exeDeserCpuTimeTotalVaryingThreads, 
+              showLegend=true, legendPosX=LegendPosX.Right,
+              legendPosY=LegendPosY.Top, title="Total Executor Deser. Time vs Parallelism (14 execs const, varying #threads)", x=Axis(label = "Parallelism(14execs, varying Threads)"),
+              y = Axis(label = "Sum Exe Deser. Time over all Tasks per Job")))
+
+    //
+    // Total Duration varying number of threads
+    //
     val durationTotalVaryingThreads = groupedVaryingThreads.toSeq.map({
       x: (String, Array[((Int, Int), JobClone)]) => 
         XY(x._2.map({p: ((Int, Int), JobClone) =>
@@ -145,7 +247,7 @@ object AODPublicAnalysisApp {
     })
     output(PNG(pathToPlots, "cpuPercentageVaryingExecutors"), 
       xyChart(cpuPercentageVaryingExecutors, showLegend=true, legendPosX=LegendPosX.Right,
-        legendPosY=LegendPosY.Top, title="Job Execution Time vs Parallelism(#execs floats, 70threads const)", x=Axis(label = "Parallelism(#execs floats, 70threads const)"),
+        legendPosY=LegendPosY.Top, title="CPU Percentage vs Parallelism(#execs floats, 70threads const)", x=Axis(label = "Parallelism(#execs floats, 70threads const)"),
         y = Axis(label = "Sum CPU Time per Task / Sum Duration Time per Task")))
     val cpuTotalVaryingExecutors = groupedVaryingExecutors.toSeq.map({
       x: (String, Array[((Int, Int), JobClone)]) => 
@@ -219,23 +321,46 @@ object AODPublicAnalysisApp {
         y = Axis(label = "Duration(s)", log = true)))
 
       //
-      // for each stage, plot the distribution of timing vs executorId/taskId
+      // for each stage, plot the distribution of timing vs executorId
       //
       var counter = 0;
       for (stage <- stages) {
         output(PNG(pathToPlots, s"timeDistributionVsExecutorId__${stage._1._1}__${stage._1._2}__${groupId}__${stage._2.id}__${counter}"), 
-          xyChart(XY(stage._2.tasks.toSeq.unzip._2.map({t: TaskClone => (t.executorId.toDouble, (t.duration/1000.0).toDouble)}), style=XYPlotStyle.Points),
+          xyChart(Seq(
+            XY(stage._2.tasks.toSeq.unzip._2.map({t: TaskClone => (t.executorId.toDouble, (t.duration).toDouble/1000.0)}), "Task.duration", style=XYPlotStyle.Points), 
+            XY(stage._2.tasks.toSeq.unzip._2.map({t: TaskClone => (t.executorId.toDouble, ((t.finishTime-t.launchTime)/1000.0).toDouble)}), "finish-launch",style=XYPlotStyle.Points), 
+            XY(stage._2.tasks.toSeq.unzip._2.map({t: TaskClone => (t.executorId.toDouble, ((t.gettingResultTime)).toDouble/1000.0)}), "gettingResultTime",style=XYPlotStyle.Points),
+            XY(stage._2.tasks.toSeq.unzip._2.map({t: TaskClone => (t.executorId.toDouble, ((t.metrics.exeRunTime)).toDouble/1000.0)}), "exeRunTime",style=XYPlotStyle.Points),
+            XY(stage._2.tasks.toSeq.unzip._2.map({t: TaskClone => (t.executorId.toDouble, ((t.metrics.exeCpuTime)/1000000000.0).toDouble)}), "exeCPUTime", style=XYPlotStyle.Points),
+            XY(stage._2.tasks.toSeq.unzip._2.map({t: TaskClone => (t.executorId.toDouble, ((t.metrics.exeDeserializeCpuTime)/1000000000.0).toDouble)}), "exeDeserCPUTime",style=XYPlotStyle.Points),
+            XY(stage._2.tasks.toSeq.unzip._2.map({t: TaskClone => (t.executorId.toDouble, ((t.metrics.exeDeserializeTime)/1000000000.0).toDouble)}), "exeDeserTime",style=XYPlotStyle.Points),
+            XY(stage._2.tasks.toSeq.unzip._2.map({t: TaskClone => (t.executorId.toDouble, ((t.metrics.jvmGCTime)).toDouble/1000.0)}), "jvmGCTime",style=XYPlotStyle.Points)
+          ),
+            showLegend=true, legendPosX=LegendPosX.Right, legendPosY=LegendPosY.Top,
             title=s"$groupId: Time vs ExecutorId(${stage._1._1}execs, ${stage._1._2}threads)", x = Axis("ExecutorId"), y = Axis(label = "Duration(s)")))
         counter += 1
       }
+
+      //
+      // vs task Id
+      //
       counter = 0;
       for (stage <- stages) {
         output(PNG(pathToPlots, s"timeDistributionVsTaskId__${stage._1._1}__${stage._1._2}__${groupId}__${stage._2.id}__${counter}"), 
-          xyChart(XY(stage._2.tasks.toSeq.unzip._2.map({t: TaskClone => (t.id.toDouble, (t.duration/1000.0).toDouble)}), style=XYPlotStyle.Points),
+          xyChart(Seq(
+            XY(stage._2.tasks.toSeq.unzip._2.map({t: TaskClone => (t.id.toDouble, (t.duration).toDouble/1000.0)}), "Task.duration", style=XYPlotStyle.Points), 
+            XY(stage._2.tasks.toSeq.unzip._2.map({t: TaskClone => (t.id.toDouble, ((t.finishTime-t.launchTime)).toDouble/1000.0)}), "finish-launch",style=XYPlotStyle.Points), 
+            XY(stage._2.tasks.toSeq.unzip._2.map({t: TaskClone => (t.id.toDouble, ((t.gettingResultTime)).toDouble/1000.0)}), "gettingResultTime",style=XYPlotStyle.Points),
+            XY(stage._2.tasks.toSeq.unzip._2.map({t: TaskClone => (t.id.toDouble, ((t.metrics.exeRunTime)).toDouble/1000.0)}), "exeRunTime",style=XYPlotStyle.Points),
+            XY(stage._2.tasks.toSeq.unzip._2.map({t: TaskClone => (t.id.toDouble, ((t.metrics.exeCpuTime)/1000000000.0).toDouble)}), "exeCPUTime", style=XYPlotStyle.Points),
+            XY(stage._2.tasks.toSeq.unzip._2.map({t: TaskClone => (t.id.toDouble, ((t.metrics.exeDeserializeCpuTime)/1000000000.0).toDouble)}), "exeDeserCPUTime",style=XYPlotStyle.Points),
+            XY(stage._2.tasks.toSeq.unzip._2.map({t: TaskClone => (t.id.toDouble, ((t.metrics.exeDeserializeTime)/1000000000.0).toDouble)}), "exeDeserTime",style=XYPlotStyle.Points),
+            XY(stage._2.tasks.toSeq.unzip._2.map({t: TaskClone => (t.id.toDouble, ((t.metrics.jvmGCTime)).toDouble/1000.0)}), "jvmGCTime",style=XYPlotStyle.Points)
+          ),
+            showLegend=true, legendPosX=LegendPosX.Right, legendPosY=LegendPosY.Top,
             title=s"$groupId: Time vs TaskId(${stage._1._1}execs, ${stage._1._2}threads)", x = Axis("TaskId"), y = Axis(label = "Duration(s)")))
         counter += 1
       }
-      
     }
   }
 }
