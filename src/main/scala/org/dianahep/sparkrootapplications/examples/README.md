@@ -11,6 +11,8 @@ __To Run:__
 ```
 from the root of this repo:
 sbt package
+
+__this cmd below is just an example!!! You must provide the input properly... The jar which contains the class... etc... all the paths should be specified acording to your needs__
 spark-submit --master local --class "org.dianahep.sparkrootapplications.examples.ReductionExampleApp" --packages org.diana-hep:spark-root_2.11:0.1.11,org.diana-hep:histogrammar-sparksql_2.11:1.0.3 /Users/vk/software/diana-hep/spark-root-applications/target/scala-2.11/spark-root-applications_2.11-0.0.2.jar file:/Users/vk/software/diana-hep/test_data/0029E804-C77C-E011-BA94-00215E22239A.root
 ```
 
