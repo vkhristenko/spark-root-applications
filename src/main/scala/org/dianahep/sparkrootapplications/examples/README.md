@@ -4,8 +4,8 @@
 - Reads in a dataset in ROOT format
 - Selects a Collection of Muons - quite standard collection that we use to test against
 - Performs some trivial filter/flatMap operations: Selects DiMuon pairs
-- Aggreages with Histogrammar and prints...
-- Saves in parquet format all of the flattened Dimuon pairs
+- Aggreages with Histogrammar and prints... and saves bundles: file:/tmp/testBundles.json
+- Saves in parquet format all of the flattened Dimuon pairs: file:/tmp/testReduced.parquet
 
 __To Run:__
 ```
