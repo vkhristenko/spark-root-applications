@@ -18,10 +18,8 @@ import org.dianahep.sparkrootapplications.defs.aodpublic._
 import org.dianahep.histogrammar._
 import org.dianahep.histogrammar.ascii._
 
-// for casting
-case class Event(muons: Seq[RecoLeafCandidate]);
-
 object ReductionExampleApp {
+  case class Event(muons: Seq[RecoLeafCandidate]);
   def main(args: Array[String]) {
     val inputPath = args(0)
     val spark = SparkSession.builder()
