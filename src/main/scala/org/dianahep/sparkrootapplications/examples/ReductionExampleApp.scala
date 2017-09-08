@@ -18,6 +18,10 @@ import org.dianahep.sparkrootapplications.defs.aodpublic._
 import org.dianahep.histogrammar._
 import org.dianahep.histogrammar.ascii._
 
+import java.util.Date;
+import java.text.SimpleDateFormat;
+import java.util.Calendar;
+
 object ReductionExampleApp {
   case class Event(muons: Seq[RecoLeafCandidate]);
   def main(args: Array[String]) {
