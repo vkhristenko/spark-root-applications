@@ -46,10 +46,23 @@ object ReductionExampleApp {
     val dsDiMuons = dsMuons.filter(_.muons.length>=2)
       .flatMap({e: Event => for (i <- 0 until e.muons.length; j <- 0 until e.muons.length) yield buildDiCandidate(e.muons(i), e.muons(j))})
     dsDiMuons.show
-    dsDiMuons.write.format("parquet").save("file:/tmp/testReduced.parquet")
+    
+    // get current user name
+    val userName = System.getProperty("user.name")
+
+    // get current date and time
+    val now = Calendar.getInstance().getTime();
+    val dateFormatter = new SimpleDateFormat("YYMMdd_HHmmss");
+    val date = dateFormatter.format(now)
+
+    // create filenames
+    val parquetFilename = "file:/tmp/" + userName + "_" + date + "_testReduced.parquet"
+    val jsonFilename = "/tmp/" + userName + "_" + date + "_testBundle.json"
+
+    dsDiMuons.write.format("parquet").save(parquetFilename)
     val filled = dsDiMuons.rdd.aggregate(emptyDiCandidate)(new Increment, new Combine);
     filled("pt").println;
-    filled.toJsonFile("/tmp/testBundle.json")
+    filled.toJsonFile(jsonFilename)
 
     // stop the session/context
     spark.stop
